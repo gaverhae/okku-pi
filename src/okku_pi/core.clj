@@ -10,6 +10,15 @@
 (defn m-approx [pi dur]
   {:type :approx :pi pi :dur dur})
 
+(defn calculate-pi-for [^long st ^long n]
+  (let [limit (* (inc st) n)]
+    (loop [i (* st n) tot 0.0]
+      (if (= i limit)
+        tot
+        (recur (unchecked-inc i) (+ tot
+                                    (* 4.0 (/ (double (unchecked-add 1 (unchecked-negate (unchecked-multiply 2 (unchecked-remainder-int i 2)))))
+                                              (double (unchecked-add 1 (unchecked-multiply 2 i)))))))))))
+
 (defn -main
   "I don't do a whole lot."
   [& args]
