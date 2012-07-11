@@ -24,6 +24,22 @@
     (dispatch-on t
       :work (! (m-result (calculate-pi-for s n))))))
 
+(defactor master [nw nm ne l]
+  (let [workerRouter (atom nil)
+        res (atom {:pi 0 :nr 0})
+        start (System/currentTimeMillis)]
+    (preStart [] (reset! workerRouter (spawn worker [] :name "workerRouter"
+                                             :router (round-robin-router nw))))
+    (onReceive [{t :type v :value}]
+      (dispatch-on t
+        :compute (dotimes [n nm]
+                   (! @workerRouter (m-work n ne)))
+        :result (do (swap! res #(merge-with + % {:pi v :nr 1}))
+                  (when (= (:nr @res) nm)
+                    (! l (m-approx (:pi @res)
+                                   (- (System/currentTimeMillis) start)))
+                    (stop)))))))
+
 (defn -main
   "I don't do a whole lot."
   [& args]
