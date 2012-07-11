@@ -40,6 +40,13 @@
                                    (- (System/currentTimeMillis) start)))
                     (stop)))))))
 
+(defactor listener []
+  (onReceive [{t :type pi :pi dur :dur}]
+    (dispatch-on t
+      :approx (do (println (format "\n\tPi approximation: \t\t%1.8f\n\tCalculation time: \t%8d millis"
+                                   pi dur))
+                (shutdown)))))
+
 (defn -main
   "I don't do a whole lot."
   [& args]
