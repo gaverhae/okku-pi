@@ -47,7 +47,12 @@
                                    pi dur))
                 (shutdown)))))
 
-(defn -main
-  "I don't do a whole lot."
-  [& args]
-  (println "Hello, World!"))
+(defn -main [& args]
+  (let [nw (if args (Integer/parseInt (first args)) 4)
+        ne 10000 nm 10000
+        sys (actor-system "PiSystem")
+        lis (spawn listener [] :in sys :name "listener")
+        mas (spawn master [nw nm ne lis] :in sys :name "master")]
+    (println "Number of workers: " nw)
+    (.tell mas (m-compute))
+    (.awaitTermination sys)))
