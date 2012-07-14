@@ -50,7 +50,7 @@
 (defn -main [& args]
   (let [nw (if args (Integer/parseInt (first args)) 4)
         ne 10000 nm 10000
-        sys (actor-system "PiSystem")
+        sys (actor-system "PiSystem" :local true)
         lis (spawn listener [] :in sys :name "listener")
         mas (spawn master [nw nm ne lis] :in sys :name "master")]
     (println "Number of workers: " nw)
