@@ -115,22 +115,23 @@ do that, let's define a function ``calculate-pi-for``:
 > you know how to make it more beautiful while retaining its performances.
 
 We can now define our worker actor. To do that, Okku defines a helper macro
-called ``defactor``, which, at its most basic level, is a wrapper around a call
-to ``proxy`` to define a subclass of ``akka.actor.UntypedActor``. ``UntypedActor``
-has many overridable methods, which you can read about in the
-[Akka documentation](http://doc.akka.io/docs/akka/2.0.2/), but the one method
-you should always redefine is ``onReceive``, which receives a message as an
-argument and reacts to it.
+called ``actor``, which is a wrapper around a call to ``proxy`` to define a
+subclass of ``akka.actor.UntypedActor``. ``UntypedActor`` has many overridable
+methods, which you can read about in the [Akka
+documentation](http://doc.akka.io/docs/akka/2.0.2/), but the one method you
+should always redefine is ``onReceive``, which receives a message as an
+argument and reacts to it. The ``actor`` macro actually returns a
+``akka.actor.Props`` object.
 
 Since most of the time, when you receive a message, you have to react in a
 different way based on what message it is, Okku provides a second helper macro
 to handle dispatching on parts of the message. The worker actor can thus be
 defined by:
 ```clojure
-(defactor worker []
-  (onReceive [{t :type s :start n :n-elem}]
-    (dispatch-on t
-      :work (! (m-result (calculate-pi-for s n))))))
+(def worker
+  (actor (onReceive [{t :type s :start n :n-elem}]
+           (dispatch-on t
+             :work (! (m-result (calculate-pi-for s n))))))
 ```
 where the ``!`` macro means "answer to the sender" when it has only one argument
 (it can be used with two arguments, ``(! target msg)``, to send a message to
@@ -141,24 +142,18 @@ an arbitrary actor).
 The master actor is a bit more complex than the worker, as it can receive
 multiple message types and has to somehow keep track of some internal state.
 
-The ``defactor`` macro allows for internal state through the use of a simple
-``let`` form in the actor definition.
-
 The first thing that the Master actor must do when initialized is to create the
-workers. You might have wondered what the ``[]`` was doing in the worker definition
-form; it is used to templatize the actor definition by defining "parameters"
-that can be set at actor creation time. For the Worker actor, there were no
-such parameters, but for the Master actor we will need four of them: the number
+workers. For the Master actor we will need four parameters: the number
 of worker actors to create, the number of ``work`` messages we want to send
 (which will be equal to the number of "chunks" to compute), the number of
 elements in each chunk, and a reference to the listener to which it must send
-the final result.
+the final result. To that end, we shall create a function that generates a
+master based on these four parameters.
 
 Finally, upon initialization, the master actor has to create the workers, and
-that is done through the ``spawn`` macro. This macro takes as first argument
-an actor definition previously defined with ``defactor``, the corresponding
-arguments in a vector, and any three of the following keyword arguments: ``in``,
-``router`` and ``name``.
+that is done through the ``spawn`` macro. This macro takes as first argument a
+``Props``, such as is returned from ``actor``, and any three of the following
+keyword arguments: ``in``, ``router`` and ``name``.
 
 The last useful macro we're going to need for the master actor is ``stop``,
 which simply stops the current actor (along with all its children, in this case
@@ -166,21 +161,22 @@ the workers).
 
 We can now write the master actor in a pretty straightforward way:
 ```clojure
-(defactor master [nw nm ne l]
+(defn master [nw nm ne l]
   (let [workerRouter (atom nil)
         res (atom {:pi 0 :nr 0})
         start (System/currentTimeMillis)]
-    (preStart [] (reset! workerRouter (spawn worker [] :name "workerRouter"
-                                             :router (round-robin-router nw))))
-    (onReceive [{t :type v :value}]
-      (dispatch-on t
-        :compute (dotimes [n nm]
-                   (! @workerRouter (m-work n ne)))
-        :result (do (swap! res #(merge-with + % {:pi v :nr 1}))
-                  (when (= (:nr @res) nm)
-                    (! l (m-approx (:pi @res)
-                                   (- (System/currentTimeMillis) start)))
-                    (stop)))))))
+    (actor
+      (preStart [] (reset! workerRouter (spawn worker :name "workerRouter"
+                                               :router (round-robin-router nw))))
+      (onReceive [{t :type v :value}]
+        (dispatch-on t
+          :compute (dotimes [n nm]
+                     (! @workerRouter (m-work n ne)))
+          :result (do (swap! res #(merge-with + % {:pi v :nr 1}))
+                    (when (= (:nr @res) nm)
+                      (! l (m-approx (:pi @res)
+                                     (- (System/currentTimeMillis) start)))
+                      (stop))))))))
 ```
 
 ## Creating the result listener
@@ -189,12 +185,13 @@ The listener needs only one capability that we have not discussed yet: it must
 shut down the entire system when it receives the final message. This is done
 through the simple helper macro ``shutdown``:
 ```clojure
-(defactor listener []
-  (onReceive [{t :type pi :pi dur :dur}]
-    (dispatch-on t
-      :approx (do (println (format "\n\tPi approximation: \t\t%1.8f\n\tCalculation time: \t%8d millis"
-                                   pi dur))
-                (shutdown)))))
+(def listener
+  (actor
+    (onReceive [{t :type pi :pi dur :dur}]
+      (dispatch-on t
+        :approx (do (println (format "\n\tPi approximation: \t\t%1.8f\n\tCalculation time: \t%8d millis"
+                                     pi dur))
+                  (shutdown))))))
 ```
 
 ## Bootstrap the calculation
@@ -209,8 +206,8 @@ first message by a direct use of Java interop:
   (let [nw (if args (Integer/parseInt (first args)) 4)
         ne 10000 nm 10000
         sys (actor-system "PiSystem" :local true)
-        lis (spawn listener [] :in sys :name "listener")
-        mas (spawn master [nw nm ne lis] :in sys :name "master")]
+        lis (spawn listener :in sys :name "listener")
+        mas (spawn (master nw nm ne lis) :in sys :name "master")]
     (println "Number of workers: " nw)
     (.tell mas (m-compute))
     (.awaitTermination sys)))
