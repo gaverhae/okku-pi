@@ -1,5 +1,5 @@
 (ns okku-pi.core
-  (use okku.core))
+  (:use okku.core))
 
 (defn m-compute []
   {:type :compute})
