@@ -1,6 +1,7 @@
 (ns okku-pi.core
   (use okku.core))
 
+; Defining message templates
 (defn m-compute []
   {:type :compute})
 (defn m-work [start n-elem]
@@ -10,6 +11,7 @@
 (defn m-approx [pi dur]
   {:type :approx :pi pi :dur dur})
 
+; Mathematical formula for pi - nothing to do with actors
 (defn calculate-pi-for [^long st ^long n]
   (let [limit (* (inc st) n)]
     (loop [i (* st n) tot 0.0]
@@ -19,11 +21,15 @@
                                     (* 4.0 (/ (double (unchecked-add 1 (unchecked-negate (unchecked-multiply 2 (unchecked-remainder-int i 2)))))
                                               (double (unchecked-add 1 (unchecked-multiply 2 i)))))))))))
 
+; worker actor - computes part of the sum
 (def worker
   (actor (onReceive [{t :type s :start n :n-elem}]
            (dispatch-on t
              :work (! (m-result (calculate-pi-for s n)))))))
 
+; master actor - coordinates the whole computation
+; it is a function so we can choose some parameters
+; furthermore, this allows to close over the parameters in the let form
 (defn master [nw nm ne l]
   (let [workerRouter (atom nil)
         res (atom {:pi 0 :nr 0})
@@ -41,6 +47,7 @@
                                      (- (System/currentTimeMillis) start)))
                       (stop))))))))
 
+; simply logs the final result
 (def listener
   (actor
     (onReceive [{t :type pi :pi dur :dur}]
