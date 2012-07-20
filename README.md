@@ -63,7 +63,7 @@ Okku to the ``okku-pi.core`` namespace. Your namespace declaration should be
 modified to look like:
 ```clojure
 (ns okku-pi.core
-  (use okku.core))
+  (:use okku.core))
 ```
 
 ## Creating the messages
