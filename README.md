@@ -1,32 +1,43 @@
 # Getting Started Tutorial (Okku)
 
+For Okku version 0.1.1.
+
 ## Introduction
 
 Welcome to the first tutorial on how to get started with Okku and Clojure. This
-tutorial is heavily inspired from the [Akka from Java tutorial](http://doc.akka.io/docs/akka/2.0.2/intro/getting-started-first-java.html). Just as they assume the reader knows Java and the general ideas behind Akka,
-this tutorial assumes that the reader knows Clojure and the general ideas behind
-Akka.
+tutorial is heavily inspired from the [Akka from Java
+tutorial](http://doc.akka.io/docs/akka/2.0.2/intro/getting-started-first-java.html).
+Just as they assume the reader knows Java and the general ideas behind Akka,
+this tutorial assumes that the reader knows Clojure and the general ideas
+behind Akka.
 
 In this tutorial, we will first set up a new project with
 [Leiningen](http://leiningen.org/), and then see how to use Okku actors to
 compute Pi using the following algorithm:
+
 ![pi](http://doc.akka.io/docs/akka/2.0.2/_images/pi-formula.png)
 
 ## Tutorial source code
 
-You can see the full source code in the ``core.clj`` file next to this one.
+You should be able to completely reproduce the source code for this tutorial by
+following along this file. Should you not want to type it all yourself,
+however, you can clone [this git
+repository](https://github.com/gaverhae/okku-pi).
 
-Should you not like the Okku API, you can check out the ``bare.clj`` file for
-an example of how to use the Akka library directly from Clojure.
+Please be aware that the tutorial repository is sometimes updated to match the
+development version of Okku. Unless you want to help update the tutorial, it is
+recommended to checkout the latest tag after cloning (version tags in the
+tutorial match the corresponding version tags for the library).
 
 ## Prerequisites
 
-This tutorial assumes you have Java 1.6 or later and access to the Leiningen
-script.
+This tutorial assumes you have Java 1.6 or later and access to the
+[Leiningen](http://leiningen.org/) script.
 
 ## Downloading and installing Okku
 
-If you have cloned this git repository, you can simply run
+If you have cloned this git repository (and checked the latest version tag),
+you can run
 ```
 lein run
 ```
@@ -37,9 +48,9 @@ you can create a new empty project by issuing the
 ```
 lein new okku-pi
 ```
-command. Once the project is initialized, you should simply add the line
+command. Once the project is initialized, you should add the line
 ```clojure
-[org.clojure.gaverhae/okku "0.1.0"]
+[org.clojure.gaverhae/okku "0.1.1"]
 ```
 to the ``:dependencies`` vector of your ``project.clj``.
 
@@ -67,6 +78,8 @@ modified to look like:
 ```
 
 ## Creating the messages
+
+From the Akka tutorial:
 
 > The design we are aiming for is to have one Master actor initiating the
 > computation, creating a set of Worker actors. Then it splits up the work into
@@ -143,12 +156,13 @@ The master actor is a bit more complex than the worker, as it can receive
 multiple message types and has to somehow keep track of some internal state.
 
 The first thing that the Master actor must do when initialized is to create the
-workers. For the Master actor we will need four parameters: the number
-of worker actors to create, the number of ``work`` messages we want to send
-(which will be equal to the number of "chunks" to compute), the number of
-elements in each chunk, and a reference to the listener to which it must send
-the final result. To that end, we shall create a function that generates a
-master based on these four parameters.
+workers. For the Master actor we will need four parameters: the number of
+worker actors to create, the number of ``work`` messages we want to send (which
+will be equal to the number of "chunks" to compute), the number of elements in
+each chunk, and a reference to the listener to which it must send the final
+result. To that end, we shall create a function that generates a master based
+on these four parameters. This also allows us to solve the internal state
+problem by closing over a let form in the function.
 
 Finally, upon initialization, the master actor has to create the workers, and
 that is done through the ``spawn`` macro. This macro takes as first argument a
@@ -156,7 +170,7 @@ that is done through the ``spawn`` macro. This macro takes as first argument a
 keyword arguments: ``in``, ``router`` and ``name``.
 
 The last useful macro we're going to need for the master actor is ``stop``,
-which simply stops the current actor (along with all its children, in this case
+which stops the current actor (along with all its children, in this case
 the workers).
 
 We can now write the master actor in a pretty straightforward way:
@@ -183,7 +197,7 @@ We can now write the master actor in a pretty straightforward way:
 
 The listener needs only one capability that we have not discussed yet: it must
 shut down the entire system when it receives the final message. This is done
-through the simple helper macro ``shutdown``:
+through the helper macro ``shutdown``:
 ```clojure
 (def listener
   (actor
@@ -234,10 +248,6 @@ So this is how to use the Okku library to simplify interop with Akka. This
 tutorial will, however, leave a Clojure programmer pretty much unimpressed by
 Akka, as this computation could just as easily have been done with Clojure
 agents.
-
-The true strength of Akka comes from the Actor model, which, while pretty good
-for parallelism, only truly shines in a distributed context. For plain old
-concurrency, Clojure has easier primitives.
 
 Check out the [remote tutorial](https://github.com/gaverhae/okku-remote/)
 to see how to distribute computation with Okku.
