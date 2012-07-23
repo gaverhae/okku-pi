@@ -1,6 +1,6 @@
 # Getting Started Tutorial (Okku)
 
-For Okku version 0.1.1.
+For Okku version 0.1.2.
 
 ## Introduction
 
@@ -50,7 +50,7 @@ lein new okku-pi
 ```
 command. Once the project is initialized, you should add the line
 ```clojure
-[org.clojure.gaverhae/okku "0.1.1"]
+[org.clojure.gaverhae/okku "0.1.2"]
 ```
 to the ``:dependencies`` vector of your ``project.clj``.
 
