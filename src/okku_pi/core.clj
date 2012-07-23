@@ -30,38 +30,39 @@
 ; master actor - coordinates the whole computation
 ; it is a function so we can choose some parameters
 ; furthermore, this allows to close over the parameters in the let form
-(defn master [nw nm ne l]
+(defn master [number-of-workers number-of-messages number-of-elements result-listener]
   (let [workerRouter (atom nil)
         res (atom {:pi 0 :nr 0})
         start (System/currentTimeMillis)]
     (actor
       (preStart [] (reset! workerRouter (spawn worker :name "workerRouter"
-                                               :router (round-robin-router nw))))
+                                               :router (round-robin-router number-of-workers))))
       (onReceive [{t :type v :value}]
-        (dispatch-on t
-          :compute (dotimes [n nm]
-                     (! @workerRouter (m-work n ne)))
-          :result (do (swap! res #(merge-with + % {:pi v :nr 1}))
-                    (when (= (:nr @res) nm)
-                      (! l (m-approx (:pi @res)
-                                     (- (System/currentTimeMillis) start)))
-                      (stop))))))))
+                 (dispatch-on t
+                              :compute (dotimes [n number-of-messages]
+                                         (! @workerRouter (m-work n number-of-elements)))
+                              :result (do (swap! res #(merge-with + % {:pi v :nr 1}))
+                                        (when (= (:nr @res) number-of-messages)
+                                          (! result-listener (m-approx (:pi @res)
+                                                                       (- (System/currentTimeMillis) start)))
+                                          (stop))))))))
 
 ; simply logs the final result
 (def listener
   (actor
     (onReceive [{t :type pi :pi dur :dur}]
-      (dispatch-on t
-        :approx (do (println (format "\n\tPi approximation: \t\t%1.8f\n\tCalculation time: \t%8d millis"
-                                     pi dur))
-                  (shutdown))))))
+               (dispatch-on t
+                            :approx (do (println (format "\n\tPi approximation: \t\t%1.8f\n\tCalculation time: \t%8d millis"
+                                                         pi dur))
+                                      (shutdown))))))
 
 (defn -main [& args]
-  (let [nw (if args (Integer/parseInt (first args)) 4)
-        ne 10000 nm 10000
-        sys (actor-system "PiSystem" :local true)
-        lis (spawn listener :in sys :name "listener")
-        mas (spawn (master nw nm ne lis) :in sys :name "master")]
-    (println "Number of workers: " nw)
-    (.tell mas (m-compute))
-    (.awaitTermination sys)))
+  (let [workers (if args (Integer/parseInt (first args)) 4)
+        elements 10000 messages 10000
+        system (actor-system "PiSystem" :local true)
+        result-printer (spawn listener :in system :name "listener")
+        coordinator (spawn (master workers messages elements result-printer)
+                           :in system :name "master")]
+    (println "Number of workers: " workers)
+    (.tell coordinator (m-compute))
+    (.awaitTermination system)))

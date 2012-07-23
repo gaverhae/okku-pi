@@ -144,7 +144,7 @@ defined by:
 (def worker
   (actor (onReceive [{t :type s :start n :n-elem}]
            (dispatch-on t
-             :work (! (m-result (calculate-pi-for s n))))))
+             :work (! (m-result (calculate-pi-for s n)))))))
 ```
 where the ``!`` macro means "answer to the sender" when it has only one argument
 (it can be used with two arguments, ``(! target msg)``, to send a message to
@@ -175,22 +175,22 @@ the workers).
 
 We can now write the master actor in a pretty straightforward way:
 ```clojure
-(defn master [nw nm ne l]
+(defn master [number-of-workers number-of-messages number-of-elements result-listener]
   (let [workerRouter (atom nil)
         res (atom {:pi 0 :nr 0})
         start (System/currentTimeMillis)]
     (actor
       (preStart [] (reset! workerRouter (spawn worker :name "workerRouter"
-                                               :router (round-robin-router nw))))
+                                               :router (round-robin-router number-of-workers))))
       (onReceive [{t :type v :value}]
-        (dispatch-on t
-          :compute (dotimes [n nm]
-                     (! @workerRouter (m-work n ne)))
-          :result (do (swap! res #(merge-with + % {:pi v :nr 1}))
-                    (when (= (:nr @res) nm)
-                      (! l (m-approx (:pi @res)
-                                     (- (System/currentTimeMillis) start)))
-                      (stop))))))))
+                 (dispatch-on t
+                              :compute (dotimes [n number-of-messages]
+                                         (! @workerRouter (m-work n number-of-elements)))
+                              :result (do (swap! res #(merge-with + % {:pi v :nr 1}))
+                                        (when (= (:nr @res) number-of-messages)
+                                          (! result-listener (m-approx (:pi @res)
+                                                                       (- (System/currentTimeMillis) start)))
+                                          (stop))))))))
 ```
 
 ## Creating the result listener
@@ -202,10 +202,10 @@ through the helper macro ``shutdown``:
 (def listener
   (actor
     (onReceive [{t :type pi :pi dur :dur}]
-      (dispatch-on t
-        :approx (do (println (format "\n\tPi approximation: \t\t%1.8f\n\tCalculation time: \t%8d millis"
-                                     pi dur))
-                  (shutdown))))))
+               (dispatch-on t
+                            :approx (do (println (format "\n\tPi approximation: \t\t%1.8f\n\tCalculation time: \t%8d millis"
+                                                         pi dur))
+                                      (shutdown))))))
 ```
 
 ## Bootstrap the calculation
@@ -217,14 +217,15 @@ fact that as ``!`` does not work outside of an actor, we have to send this
 first message by a direct use of Java interop:
 ```clojure
 (defn -main [& args]
-  (let [nw (if args (Integer/parseInt (first args)) 4)
-        ne 10000 nm 10000
-        sys (actor-system "PiSystem" :local true)
-        lis (spawn listener :in sys :name "listener")
-        mas (spawn (master nw nm ne lis) :in sys :name "master")]
-    (println "Number of workers: " nw)
-    (.tell mas (m-compute))
-    (.awaitTermination sys)))
+  (let [workers (if args (Integer/parseInt (first args)) 4)
+        elements 10000 messages 10000
+        system (actor-system "PiSystem" :local true)
+        result-printer (spawn listener :in system :name "listener")
+        coordinator (spawn (master workers messages elements result-printer)
+                           :in system :name "master")]
+    (println "Number of workers: " workers)
+    (.tell coordinator (m-compute))
+    (.awaitTermination system)))
 ```
 
 ## Run it from leiningen
