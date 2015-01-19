@@ -64,5 +64,5 @@
         coordinator (spawn (master workers messages elements result-printer)
                            :in system :name "master")]
     (println "Number of workers: " workers)
-    (.tell coordinator (m-compute))
+    (.tell coordinator (m-compute) nil)
     (.awaitTermination system)))
