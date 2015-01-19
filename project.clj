@@ -1,4 +1,4 @@
-(defproject okku-pi "0.1.4"
+(defproject okku-pi "0.1.5-SNAPSHOT"
   :description "Okku Pi tutorial"
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}

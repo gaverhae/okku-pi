@@ -13,13 +13,14 @@
 
 ; Mathematical formula for pi - nothing to do with actors
 (defn calculate-pi-for [^long st ^long n]
-  (let [limit (* (inc st) n)]
-    (loop [i (* st n) tot 0.0]
-      (if (= i limit)
-        tot
-        (recur (unchecked-inc i) (+ tot
-                                    (* 4.0 (/ (double (unchecked-add 1 (unchecked-negate (unchecked-multiply 2 (unchecked-remainder-int i 2)))))
-                                              (double (unchecked-add 1 (unchecked-multiply 2 i)))))))))))
+  (binding [*unchecked-math* true]
+    (let [limit (* (inc st) n)]
+      (loop [i (* st n) tot 0.0]
+        (if (= i limit)
+          tot
+          (recur (inc i) (+ tot
+                            (* 4.0 (/ (double (+ 1 (- (* 2 (rem i 2)))))
+                                      (double (+ 1 (* 2 i))))))))))))
 
 ; worker actor - computes part of the sum
 (def worker
